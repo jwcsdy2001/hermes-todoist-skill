@@ -173,16 +173,26 @@ def _extract_tasks(result) -> list:
 
 
 def _filter_has_due(tasks: list) -> list:
-    """Remove tasks where due is null — Todoist API quirk: 'overdue' filter includes no-due tasks."""
+    """Remove tasks where due is null — Todoist API quirk: filters include no-due tasks."""
     return [t for t in tasks if t.get("due") is not None]
 
 
+def _filter_due_before(tasks: list, date_str: str) -> list:
+    """Keep only tasks whose due.date is strictly before date_str (i.e. overdue)."""
+    return [t for t in _filter_has_due(tasks) if _due_date(t) < date_str]
+
+
+def _filter_due_on(tasks: list, date_str: str) -> list:
+    """Keep only tasks whose due.date exactly equals date_str."""
+    return [t for t in _filter_has_due(tasks) if _due_date(t) == date_str]
+
+
 def _due_date(task: dict) -> str:
-    """Safely get due date string from a task, returns '未知' if missing."""
+    """Safely get due date string from a task, returns '' if missing."""
     due = task.get("due")
     if due and isinstance(due, dict):
-        return due.get("date", "未知")
-    return "未知"
+        return due.get("date", "")
+    return ""
 
 
 def cmd_today_overdue(api_key: str, args) -> None:
@@ -192,8 +202,9 @@ def cmd_today_overdue(api_key: str, args) -> None:
     overdue_result = make_request("GET", "/tasks", api_key, params={"filter": "overdue"})
     today_result = make_request("GET", "/tasks", api_key, params={"filter": "today"})
 
-    overdue_tasks = _filter_has_due(_extract_tasks(overdue_result))
-    today_tasks = _filter_has_due(_extract_tasks(today_result))
+    # Partition strictly by date — Todoist API bleeds overdue tasks into today/tomorrow filters
+    overdue_tasks = _filter_due_before(_extract_tasks(overdue_result), today_str)
+    today_tasks = _filter_due_on(_extract_tasks(today_result), today_str)
 
     output = {
         "date": today_str,
@@ -212,14 +223,17 @@ def cmd_daily_summary(api_key: str, args) -> None:
     """Daily execution summary: today pending + overdue reschedule prompts + tomorrow preview."""
     today = date.today()
     tomorrow = today + timedelta(days=1)
+    today_str = today.isoformat()
+    tomorrow_str = tomorrow.isoformat()
 
     overdue_result = make_request("GET", "/tasks", api_key, params={"filter": "overdue"})
     today_result = make_request("GET", "/tasks", api_key, params={"filter": "today"})
     tomorrow_result = make_request("GET", "/tasks", api_key, params={"filter": "tomorrow"})
 
-    overdue_tasks = _filter_has_due(_extract_tasks(overdue_result))
-    today_tasks = _filter_has_due(_extract_tasks(today_result))
-    tomorrow_tasks = _filter_has_due(_extract_tasks(tomorrow_result))
+    # Partition strictly by date — Todoist API bleeds overdue tasks into today/tomorrow filters
+    overdue_tasks = _filter_due_before(_extract_tasks(overdue_result), today_str)
+    today_tasks = _filter_due_on(_extract_tasks(today_result), today_str)
+    tomorrow_tasks = _filter_due_on(_extract_tasks(tomorrow_result), tomorrow_str)
 
     reschedule_items = [
         {
@@ -234,8 +248,8 @@ def cmd_daily_summary(api_key: str, args) -> None:
     ]
 
     output = {
-        "report_date": today.isoformat(),
-        "tomorrow_date": tomorrow.isoformat(),
+        "report_date": today_str,
+        "tomorrow_date": tomorrow_str,
         "today_execution": {
             "pending_count": len(today_tasks),
             "tasks": today_tasks,
