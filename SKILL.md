@@ -34,7 +34,8 @@ Skill 目錄下的 `scripts/todoist.py`。執行時用絕對路徑，或先 `cd`
 - 「完成任務 XXX」、「標記 XXX 為已完成」
 - 「重新開啟任務 XXX」
 - 「刪除任務 XXX」
-- 「列出所有專案」、「在哪個 project 新增任務」
+- 「列出今天到期及已過期的任務」、「今日待辦 + 過期任務」
+- 「今天的執行狀況」、「今日任務統整」、「明天要做什麼」、「幫我整理今天的工作並展望明天」、「過期任務要不要改期」
 
 ---
 
@@ -171,6 +172,72 @@ python3 scripts/todoist.py projects
 ```
 
 回傳：`{ "results": [...] }`，每筆含 `id`、`name`、`color`、`is_inbox_project` 等欄位。
+
+---
+
+### 9. 列出今日及過期任務（Today + Overdue）
+
+```bash
+python3 scripts/todoist.py today_overdue
+```
+
+同時拉取 `overdue` 與 `today` 兩個 filter，分區回傳：
+
+```json
+{
+  "date": "2026-04-29",
+  "summary": { "overdue_count": 2, "today_count": 3, "total": 5 },
+  "overdue": [ ...任務列表... ],
+  "today":   [ ...任務列表... ]
+}
+```
+
+---
+
+### 10. 每日執行統整 + 明日展望（Daily Summary）
+
+```bash
+python3 scripts/todoist.py daily_summary
+```
+
+同時拉取 `overdue`、`today`、`tomorrow` 三個 filter，回傳完整每日報告：
+
+```json
+{
+  "report_date": "2026-04-29",
+  "tomorrow_date": "2026-04-30",
+  "today_execution": {
+    "pending_count": 3,
+    "tasks": [ ...今日待辦... ]
+  },
+  "overdue": {
+    "count": 2,
+    "tasks": [ ...過期任務... ],
+    "reschedule_items": [
+      {
+        "id": "abc123",
+        "content": "任務名稱",
+        "due": { "date": "2026-04-27" },
+        "reschedule_prompt": "任務「...」已過期（原到期：2026-04-27），請問要改期、完成還是刪除？"
+      }
+    ],
+    "agent_instruction": "以下任務已逾期，請逐一向使用者確認：要改期（提供新日期）、標記完成，還是刪除？"
+  },
+  "tomorrow_preview": {
+    "count": 2,
+    "tasks": [ ...明日任務... ]
+  }
+}
+```
+
+**代理人使用流程（daily_summary）：**
+1. 呼叫 `daily_summary` 取得完整報告
+2. 向使用者展示今日待辦任務執行狀況
+3. 針對 `overdue.reschedule_items` 逐一詢問使用者：改期 / 完成 / 刪除
+   - 改期 → `update <id> --due_string "..."` 或 `--due_date "YYYY-MM-DD"`
+   - 完成 → `complete <id>`
+   - 刪除 → `delete <id>`（需二次確認）
+4. 展示明日任務預覽
 
 ---
 

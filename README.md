@@ -14,6 +14,8 @@ A Hermes agent skill that provides full CRUD operations on Todoist tasks via the
 - **Reopen** a completed task
 - **Delete** a task permanently
 - **List projects** to find project IDs
+- **Today + Overdue** — list overdue and today's tasks in two separate sections
+- **Daily Summary** — today's pending tasks + overdue reschedule prompts + tomorrow preview
 
 ## Requirements
 
@@ -34,6 +36,12 @@ cp -r hermes-todoist-skill ~/.hermes/skills/openclaw-imports/todoist-crud
 ## Direct Script Usage
 
 ```bash
+# List today's and overdue tasks (two sections)
+python3 scripts/todoist.py today_overdue
+
+# Daily summary: today pending + overdue reschedule + tomorrow preview
+python3 scripts/todoist.py daily_summary
+
 # List today's and overdue tasks
 python3 scripts/todoist.py list --filter "today|overdue"
 
@@ -71,6 +79,8 @@ python3 scripts/todoist.py projects
 | Reopen task | POST | `/api/v1/tasks/{id}/reopen` |
 | Delete task | DELETE | `/api/v1/tasks/{id}` |
 | List projects | GET | `/api/v1/projects` |
+| Today + Overdue | GET×2 | `/api/v1/tasks` (filter=today & filter=overdue) |
+| Daily Summary | GET×3 | `/api/v1/tasks` (today, overdue, tomorrow) |
 
 ## Priority Values
 

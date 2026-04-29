@@ -25,6 +25,8 @@ Authorization: Bearer <TODOIST_API_KEY>
 | Capability | File |
 |------------|------|
 | Todoist Task CRUD | `specs/todoist-crud/spec.md` |
+| Today + Overdue Listing | `specs/todoist-crud/spec.md` (Command: today_overdue) |
+| Daily Summary & Tomorrow Preview | `specs/todoist-crud/spec.md` (Command: daily_summary) |
 
 ## Components
 
