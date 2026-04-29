@@ -193,7 +193,7 @@ def cmd_today_overdue(api_key: str, args) -> None:
     today_result = make_request("GET", "/tasks", api_key, params={"filter": "today"})
 
     overdue_tasks = _filter_has_due(_extract_tasks(overdue_result))
-    today_tasks = _extract_tasks(today_result)
+    today_tasks = _filter_has_due(_extract_tasks(today_result))
 
     output = {
         "date": today_str,
@@ -218,8 +218,8 @@ def cmd_daily_summary(api_key: str, args) -> None:
     tomorrow_result = make_request("GET", "/tasks", api_key, params={"filter": "tomorrow"})
 
     overdue_tasks = _filter_has_due(_extract_tasks(overdue_result))
-    today_tasks = _extract_tasks(today_result)
-    tomorrow_tasks = _extract_tasks(tomorrow_result)
+    today_tasks = _filter_has_due(_extract_tasks(today_result))
+    tomorrow_tasks = _filter_has_due(_extract_tasks(tomorrow_result))
 
     reschedule_items = [
         {

@@ -230,14 +230,9 @@ python3 scripts/todoist.py daily_summary
 }
 ```
 
-**代理人使用流程（daily_summary）：**
-1. 呼叫 `daily_summary` 取得完整報告
-2. 向使用者展示今日待辦任務執行狀況
-3. 針對 `overdue.reschedule_items` 逐一詢問使用者：改期 / 完成 / 刪除
-   - 改期 → `update <id> --due_string "..."` 或 `--due_date "YYYY-MM-DD"`
-   - 完成 → `complete <id>`
-   - 刪除 → `delete <id>`（需二次確認）
-4. 展示明日任務預覽
+**代理人使用建議（daily_summary）：**
+`reschedule_items` 已包含每筆過期任務的 `reschedule_prompt` 字串，可直接用於向使用者詢問。
+後續操作：改期用 `update`、完成用 `complete`、刪除用 `delete`（需二次確認）。
 
 ---
 
