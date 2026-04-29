@@ -31,6 +31,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import date, timedelta
 
 
 API_BASE = "https://api.todoist.com/api/v1"
@@ -164,6 +165,85 @@ def cmd_projects(api_key: str, args) -> None:
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
+def _extract_tasks(result) -> list:
+    """Safely extract task list from API response (handles both list and dict with 'results' key)."""
+    if isinstance(result, list):
+        return result
+    return result.get("results", [])
+
+
+def cmd_today_overdue(api_key: str, args) -> None:
+    """List overdue and today's tasks in separate sections."""
+    today_str = date.today().isoformat()
+
+    overdue_result = make_request("GET", "/tasks", api_key, params={"filter": "overdue"})
+    today_result = make_request("GET", "/tasks", api_key, params={"filter": "today"})
+
+    overdue_tasks = _extract_tasks(overdue_result)
+    today_tasks = _extract_tasks(today_result)
+
+    output = {
+        "date": today_str,
+        "summary": {
+            "overdue_count": len(overdue_tasks),
+            "today_count": len(today_tasks),
+            "total": len(overdue_tasks) + len(today_tasks),
+        },
+        "overdue": overdue_tasks,
+        "today": today_tasks,
+    }
+    print(json.dumps(output, ensure_ascii=False, indent=2))
+
+
+def cmd_daily_summary(api_key: str, args) -> None:
+    """Daily execution summary: today pending + overdue reschedule prompts + tomorrow preview."""
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+
+    overdue_result = make_request("GET", "/tasks", api_key, params={"filter": "overdue"})
+    today_result = make_request("GET", "/tasks", api_key, params={"filter": "today"})
+    tomorrow_result = make_request("GET", "/tasks", api_key, params={"filter": "tomorrow"})
+
+    overdue_tasks = _extract_tasks(overdue_result)
+    today_tasks = _extract_tasks(today_result)
+    tomorrow_tasks = _extract_tasks(tomorrow_result)
+
+    reschedule_items = [
+        {
+            "id": t.get("id"),
+            "content": t.get("content"),
+            "due": t.get("due"),
+            "priority": t.get("priority"),
+            "labels": t.get("labels", []),
+            "reschedule_prompt": f"任務「{t.get('content')}」已過期（原到期：{t.get('due', {}).get('date', '未知')}），請問要改期、完成還是刪除？",
+        }
+        for t in overdue_tasks
+    ]
+
+    output = {
+        "report_date": today.isoformat(),
+        "tomorrow_date": tomorrow.isoformat(),
+        "today_execution": {
+            "pending_count": len(today_tasks),
+            "tasks": today_tasks,
+        },
+        "overdue": {
+            "count": len(overdue_tasks),
+            "tasks": overdue_tasks,
+            "reschedule_items": reschedule_items,
+            "agent_instruction": (
+                "以下任務已逾期，請逐一向使用者確認：要改期（提供新日期）、標記完成，還是刪除？"
+                if overdue_tasks else None
+            ),
+        },
+        "tomorrow_preview": {
+            "count": len(tomorrow_tasks),
+            "tasks": tomorrow_tasks,
+        },
+    }
+    print(json.dumps(output, ensure_ascii=False, indent=2))
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Todoist API v1 CRUD helper for Hermes Agent"
@@ -218,6 +298,15 @@ def main():
     # projects
     sub.add_parser("projects", help="List all projects")
 
+    # today_overdue
+    sub.add_parser("today_overdue", help="List overdue and today's tasks in separate sections")
+
+    # daily_summary
+    sub.add_parser(
+        "daily_summary",
+        help="Daily summary: today pending tasks + overdue reschedule prompts + tomorrow preview",
+    )
+
     args = parser.parse_args()
 
     try:
@@ -235,6 +324,8 @@ def main():
         "reopen": cmd_reopen,
         "delete": cmd_delete,
         "projects": cmd_projects,
+        "today_overdue": cmd_today_overdue,
+        "daily_summary": cmd_daily_summary,
     }
 
     dispatch[args.command](api_key, args)

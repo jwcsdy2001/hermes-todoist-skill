@@ -187,6 +187,67 @@ List all projects.
 
 ---
 
+## Script Command: today_overdue
+
+Calls `GET /tasks` twice (`filter=overdue` + `filter=today`) and merges results into separate sections.
+
+### Response (script JSON output)
+
+```json
+{
+  "date": "2026-04-29",
+  "summary": {
+    "overdue_count": 2,
+    "today_count": 3,
+    "total": 5
+  },
+  "overdue": [ ...task objects... ],
+  "today":   [ ...task objects... ]
+}
+```
+
+---
+
+## Script Command: daily_summary
+
+Calls `GET /tasks` three times (`filter=overdue`, `filter=today`, `filter=tomorrow`) and assembles a full daily report with reschedule prompts.
+
+### Response (script JSON output)
+
+```json
+{
+  "report_date": "2026-04-29",
+  "tomorrow_date": "2026-04-30",
+  "today_execution": {
+    "pending_count": 3,
+    "tasks": [ ...task objects... ]
+  },
+  "overdue": {
+    "count": 2,
+    "tasks": [ ...task objects... ],
+    "reschedule_items": [
+      {
+        "id": "abc123",
+        "content": "Task title",
+        "due": { "date": "2026-04-27" },
+        "priority": 2,
+        "labels": [],
+        "reschedule_prompt": "任務「Task title」已過期（原到期：2026-04-27），請問要改期、完成還是刪除？"
+      }
+    ],
+    "agent_instruction": "以下任務已逾期，請逐一向使用者確認：要改期（提供新日期）、標記完成，還是刪除？"
+  },
+  "tomorrow_preview": {
+    "count": 2,
+    "tasks": [ ...task objects... ]
+  }
+}
+```
+
+`agent_instruction` is `null` when there are no overdue tasks.
+
+---
+
 ## Error Codes
 
 | Code | Meaning |
