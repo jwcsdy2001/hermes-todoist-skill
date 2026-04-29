@@ -172,6 +172,19 @@ def _extract_tasks(result) -> list:
     return result.get("results", [])
 
 
+def _filter_has_due(tasks: list) -> list:
+    """Remove tasks where due is null — Todoist API quirk: 'overdue' filter includes no-due tasks."""
+    return [t for t in tasks if t.get("due") is not None]
+
+
+def _due_date(task: dict) -> str:
+    """Safely get due date string from a task, returns '未知' if missing."""
+    due = task.get("due")
+    if due and isinstance(due, dict):
+        return due.get("date", "未知")
+    return "未知"
+
+
 def cmd_today_overdue(api_key: str, args) -> None:
     """List overdue and today's tasks in separate sections."""
     today_str = date.today().isoformat()
@@ -179,7 +192,7 @@ def cmd_today_overdue(api_key: str, args) -> None:
     overdue_result = make_request("GET", "/tasks", api_key, params={"filter": "overdue"})
     today_result = make_request("GET", "/tasks", api_key, params={"filter": "today"})
 
-    overdue_tasks = _extract_tasks(overdue_result)
+    overdue_tasks = _filter_has_due(_extract_tasks(overdue_result))
     today_tasks = _extract_tasks(today_result)
 
     output = {
@@ -204,7 +217,7 @@ def cmd_daily_summary(api_key: str, args) -> None:
     today_result = make_request("GET", "/tasks", api_key, params={"filter": "today"})
     tomorrow_result = make_request("GET", "/tasks", api_key, params={"filter": "tomorrow"})
 
-    overdue_tasks = _extract_tasks(overdue_result)
+    overdue_tasks = _filter_has_due(_extract_tasks(overdue_result))
     today_tasks = _extract_tasks(today_result)
     tomorrow_tasks = _extract_tasks(tomorrow_result)
 
@@ -215,7 +228,7 @@ def cmd_daily_summary(api_key: str, args) -> None:
             "due": t.get("due"),
             "priority": t.get("priority"),
             "labels": t.get("labels", []),
-            "reschedule_prompt": f"任務「{t.get('content')}」已過期（原到期：{t.get('due', {}).get('date', '未知')}），請問要改期、完成還是刪除？",
+            "reschedule_prompt": f"任務「{t.get('content')}」已過期（原到期：{_due_date(t)}），請問要改期、完成還是刪除？",
         }
         for t in overdue_tasks
     ]
