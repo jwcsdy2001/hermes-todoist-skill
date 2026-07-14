@@ -1,0 +1,35 @@
+name: Branch Policy
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+
+jobs:
+  enforce:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branch policy
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+        run: |
+          echo "base=$BASE head=$HEAD"
+          ok=0
+          case "$BASE" in
+            dev)
+              for p in 'feat/' 'fix/' 'hotfix/' 'release/'; do
+                case "$HEAD" in "$p"*) ok=1;; esac
+              done
+              ;;
+            main|master)
+              case "$HEAD" in
+                dev|release/*|hotfix/*) ok=1;;
+              esac
+              ;;
+            *) ok=1;;
+          esac
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::Branch policy violation: '$HEAD' -> '$BASE' is not allowed."
+            exit 1
+          fi
+          echo "Branch policy check passed."
